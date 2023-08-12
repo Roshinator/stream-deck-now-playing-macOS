@@ -74,7 +74,7 @@ class NowPlayingAction : Action
     func changedHandler(infoCenter: MPNowPlayingInfoCenter, change: NSKeyValueObservedChange<[String: Any]?>)
     {
         var image: NSImage? = nil;
-        while true
+        repeat
         {
             var newInfo: [String: Any];
             if change.newValue == nil || change.newValue! == nil
@@ -94,7 +94,7 @@ class NowPlayingAction : Action
                 break;
             }
             image = maybeImage!
-        }
+        } while false
         self.setImage(to: image)
     }
     
