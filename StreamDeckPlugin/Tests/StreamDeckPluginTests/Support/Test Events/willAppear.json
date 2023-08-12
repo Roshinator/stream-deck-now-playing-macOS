@@ -1,0 +1,16 @@
+{
+  "action": "com.elgato.example.willAppear",
+  "event": "willAppear",
+  "context": "opaqueValue",
+  "device": "opaqueValue",
+  "payload": {
+	"controller": "Keypad",
+    "settings": {},
+    "coordinates": {
+      "column": 3,
+      "row": 1
+    },
+    "state": 0,
+    "isInMultiAction": false
+  }
+}

@@ -1,26 +1,26 @@
-// swift-tools-version: 5.9
+// swift-tools-version:5.4
 // The swift-tools-version declares the minimum version of Swift required to build this package.
 
 import PackageDescription
 
 let package = Package(
-    name: "NowPlaying-macOS",
+    name: "CounterPlugin",
     platforms: [.macOS(.v10_15)],
     products: [
-        .executable(name: "nowplaying-plugin", targets: ["nowplaying"])
+        .executable(name: "counter-plugin", targets: ["counter"])
     ],
     dependencies: [
         // Dependencies declare other packages that this package depends on.
-       //.package(name: "StreamDeck", url: "https://github.com/emorydunn/StreamDeckPlugin.git", .branch("main")),
-        .package(name: "StreamDeck", path: "StreamDeckPlugin"), // For local development
+//        .package(name: "StreamDeck", url: "https://github.com/emorydunn/StreamDeckPlugin.git", .branch("main"))
+		.package(path: "/Users/emorydunn/Repositories/StreamDeck/StreamDeckPlugin"),
     ],
     targets: [
         // Targets are the basic building blocks of a package. A target can define a module or a test suite.
         // Targets can depend on other targets in this package, and on products in packages this package depends on.
         .executableTarget(
-            name: "nowplaying",
+            name: "counter",
             dependencies: [
-                .product(name: "StreamDeck", package: "StreamDeck"),
+				.product(name: "StreamDeck", package: "StreamDeckPlugin"),
             ]),
     ]
 )
