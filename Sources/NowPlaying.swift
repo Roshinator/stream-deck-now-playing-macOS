@@ -15,17 +15,17 @@ class NowPlayingPlugin: PluginDelegate
     
     static var description: String = "This plugin displays the album art of the currently playing media."
     
-    static var category: String? = "Utilities"
+    static var category: String? = nil
     
     static var categoryIcon: String? = nil
     
     static var author: String = "Roshinator"
     
-    static var icon: String = ""
+    static var icon: String = "Icons/pluginIcon"
     
     static var url: URL? = nil
     
-    static var version: String = "0.0.1"
+    static var version: String = "0.1"
     
     static var os: [StreamDeck.PluginOS] = [.mac(minimumVersion: "10.15")]
     
@@ -38,7 +38,7 @@ class NowPlayingPlugin: PluginDelegate
     }
 }
 
-class NowPlayingAction : Action
+class NowPlayingAction : KeyAction
 {
     typealias Settings = NoSettings
     
@@ -46,57 +46,69 @@ class NowPlayingAction : Action
     
     static var uuid: String = "nowplaying.current"
     
-    static var icon: String = ""
+    static var icon: String = "Icons/actionIcon"
     
-    static var states: [StreamDeck.PluginActionState]? = []
+    static var states: [StreamDeck.PluginActionState]? = nil
     
-    static var controllers: [StreamDeck.ControllerType] = []
+    var context: String
     
-    static var encoder: StreamDeck.RotaryEncoder? = nil
+    var coordinates: StreamDeck.Coordinates?;
     
-    var context: String = ""
-    
-    var coordinates: StreamDeck.Coordinates? = nil;
-    
-    private var infoCenter: MPNowPlayingInfoCenter
-    
+    private var bundle: CFBundle
+        
     private var observation: NSKeyValueObservation?
+    
+    private var pressed: Bool = false
+    
+    typealias MRMediaRemoteGetNowPlayingInfoFunction = @convention(c) (DispatchQueue, @escaping ([String: Any]) -> Void) -> Void
+    private var MRMediaRemoteGetNowPlayingInfo: MRMediaRemoteGetNowPlayingInfoFunction
     
     required init(context: String, coordinates: StreamDeck.Coordinates?)
     {
         self.context = context
         self.coordinates = coordinates
-        self.infoCenter = MPNowPlayingInfoCenter.default()
-        self.observation = infoCenter.observe(\.nowPlayingInfo, options: [.new], changeHandler: changedHandler)
+        
+        self.bundle = CFBundleCreate(kCFAllocatorDefault, NSURL(fileURLWithPath: "/System/Library/PrivateFrameworks/MediaRemote.framework"))
+        
+        // Get a Swift function for MRMediaRemoteGetNowPlayingInfo
+        guard let MRMediaRemoteGetNowPlayingInfoPointer = CFBundleGetFunctionPointerForName(bundle, "MRMediaRemoteGetNowPlayingInfo" as CFString) else { abort() }
+        self.MRMediaRemoteGetNowPlayingInfo = unsafeBitCast(MRMediaRemoteGetNowPlayingInfoPointer, to: MRMediaRemoteGetNowPlayingInfoFunction.self)
+
+        //Subscribe to notifications
+//        guard let kMRMediaRemoteNowPlayingInfoDidChangeNotificationPointer = CFBundleGet(bundle, "kMRMediaRemoteNowPlayingInfoDidChangeNotification" as CFString) else {abort()}
+//        let kMRMediaRemoteNowPlayingInfoDidChangeNotification = unsafeBitCast(kMRMediaRemoteNowPlayingInfoDidChangeNotificationPointer, to: CFString.self)
+        
+        let kMRMediaRemoteNowPlayingInfoDidChangeNotification = "kMRMediaRemoteNowPlayingInfoDidChangeNotification" as CFString
+        
+        guard let MRMediaRemoteRegisterForNowPlayingNotificationsPointer = CFBundleGetFunctionPointerForName(bundle, "MRMediaRemoteRegisterForNowPlayingNotifications" as CFString) else {abort()}
+        typealias MRMediaRemoteRegisterForNowPlayingNotificationsFunction = @convention(c) (DispatchQueue) -> Void
+        let MRMediaRemoteRegisterForNowPlayingNotifications = unsafeBitCast(MRMediaRemoteRegisterForNowPlayingNotificationsPointer, to: MRMediaRemoteRegisterForNowPlayingNotificationsFunction.self)
+        
+        MRMediaRemoteRegisterForNowPlayingNotifications(DispatchQueue.main);
+
+        NotificationCenter.default.addObserver(self, selector: #selector(infoDidChange), name: kMRMediaRemoteNowPlayingInfoDidChangeNotification as NSNotification.Name, object: nil)
+        
+        getArt();
     }
     
-    @Sendable
-    func changedHandler(infoCenter: MPNowPlayingInfoCenter, change: NSKeyValueObservedChange<[String: Any]?>)
+    @objc func infoDidChange(notification: NSNotification)
     {
-        var image: NSImage? = nil;
-        repeat
-        {
-            var newInfo: [String: Any];
-            if change.newValue == nil || change.newValue! == nil
-            {
-                break;
-            }
-            newInfo = change.newValue!!
-            let maybeArtAny = newInfo[MPMediaItemPropertyArtwork]
-            if maybeArtAny == nil
-            {
-                break;
-            }
-            let artwork = maybeArtAny! as! MPMediaItemArtwork;
-            let maybeImage = artwork.image(at: CGSize(width: 144, height: 144))
-            if maybeImage == nil
-            {
-                break;
-            }
-            image = maybeImage!
-        } while false
-        self.setImage(to: image)
+        getArt();
     }
     
-    //MPMediaItemPropertyArtwork
+    func getArt()
+    {
+        // Get song info
+        MRMediaRemoteGetNowPlayingInfo(DispatchQueue.main, { (information) in
+            var artwork: NSImage?;
+            artwork = NSImage(data: information["kMRMediaRemoteNowPlayingInfoArtworkData"] as! Data) ?? nil
+            self.setImage(to: artwork)
+        })
+    }
+    
+    func keyDown(device: String, payload: KeyEvent<NoSettings>)
+    {
+        pressed = !pressed
+        setTitle(to: "\(pressed)")
+    }
 }
