@@ -23,7 +23,7 @@ class NowPlayingPlugin: PluginDelegate
     
     static var icon: String = "Icons/pluginIcon"
     
-    static var url: URL? = nil
+    static var url: URL? = URL(string: "https://github.com/Roshinator/stream-deck-now-playing-macOS")
     
     static var version: String = "0.1"
     
@@ -38,7 +38,7 @@ class NowPlayingPlugin: PluginDelegate
     }
 }
 
-class NowPlayingAction : KeyAction
+class NowPlayingAction : StatelessKeyAction
 {
     typealias Settings = NoSettings
     
@@ -48,12 +48,12 @@ class NowPlayingAction : KeyAction
     
     static var icon: String = "Icons/actionIcon"
     
-    static var states: [StreamDeck.PluginActionState]? = nil
-    
     var context: String
     
     var coordinates: StreamDeck.Coordinates?;
     
+    
+    //Non Action Items
     private var bundle: CFBundle
         
     private var observation: NSKeyValueObservation?
@@ -62,6 +62,13 @@ class NowPlayingAction : KeyAction
     
     typealias MRMediaRemoteGetNowPlayingInfoFunction = @convention(c) (DispatchQueue, @escaping ([String: Any]) -> Void) -> Void
     private var MRMediaRemoteGetNowPlayingInfo: MRMediaRemoteGetNowPlayingInfoFunction
+    
+    
+    
+    private static let kMRMediaRemoteNowPlayingInfoArtworkData = "kMRMediaRemoteNowPlayingInfoArtworkData"
+    private static let kMRMediaRemoteNowPlayingInfoArtist = "kMRMediaRemoteNowPlayingInfoArtist"
+    private static let kMRMediaRemoteNowPlayingInfoAlbum = "kMRMediaRemoteNowPlayingInfoAlbum"
+    private static let kMRMediaRemoteNowPlayingInfoTitle = "kMRMediaRemoteNowPlayingInfoTitle"
     
     required init(context: String, coordinates: StreamDeck.Coordinates?)
     {
@@ -73,12 +80,8 @@ class NowPlayingAction : KeyAction
         // Get a Swift function for MRMediaRemoteGetNowPlayingInfo
         guard let MRMediaRemoteGetNowPlayingInfoPointer = CFBundleGetFunctionPointerForName(bundle, "MRMediaRemoteGetNowPlayingInfo" as CFString) else { abort() }
         self.MRMediaRemoteGetNowPlayingInfo = unsafeBitCast(MRMediaRemoteGetNowPlayingInfoPointer, to: MRMediaRemoteGetNowPlayingInfoFunction.self)
-
-        //Subscribe to notifications
-//        guard let kMRMediaRemoteNowPlayingInfoDidChangeNotificationPointer = CFBundleGet(bundle, "kMRMediaRemoteNowPlayingInfoDidChangeNotification" as CFString) else {abort()}
-//        let kMRMediaRemoteNowPlayingInfoDidChangeNotification = unsafeBitCast(kMRMediaRemoteNowPlayingInfoDidChangeNotificationPointer, to: CFString.self)
         
-        let kMRMediaRemoteNowPlayingInfoDidChangeNotification = "kMRMediaRemoteNowPlayingInfoDidChangeNotification" as CFString
+        let kMRMediaRemoteNowPlayingInfoDidChangeNotification = Notification.Name("kMRMediaRemoteNowPlayingInfoDidChangeNotification")
         
         guard let MRMediaRemoteRegisterForNowPlayingNotificationsPointer = CFBundleGetFunctionPointerForName(bundle, "MRMediaRemoteRegisterForNowPlayingNotifications" as CFString) else {abort()}
         typealias MRMediaRemoteRegisterForNowPlayingNotificationsFunction = @convention(c) (DispatchQueue) -> Void
@@ -86,7 +89,7 @@ class NowPlayingAction : KeyAction
         
         MRMediaRemoteRegisterForNowPlayingNotifications(DispatchQueue.main);
 
-        NotificationCenter.default.addObserver(self, selector: #selector(infoDidChange), name: kMRMediaRemoteNowPlayingInfoDidChangeNotification as NSNotification.Name, object: nil)
+        NotificationCenter.default.addObserver(self, selector: #selector(infoDidChange), name: kMRMediaRemoteNowPlayingInfoDidChangeNotification, object: nil)
         
         getArt();
     }
@@ -100,15 +103,32 @@ class NowPlayingAction : KeyAction
     {
         // Get song info
         MRMediaRemoteGetNowPlayingInfo(DispatchQueue.main, { (information) in
-            var artwork: NSImage?;
-            artwork = NSImage(data: information["kMRMediaRemoteNowPlayingInfoArtworkData"] as! Data) ?? nil
+            let data: Data? = self.getItemFromNowPlayingInfo(info: information, key: Self.kMRMediaRemoteNowPlayingInfoArtworkData)
+            var artwork: NSImage?
+            if let d = data
+            {
+                artwork = NSImage(data: d) ?? nil
+            }
+            if artwork == nil
+            {
+                //Create placeholder image
+            }
             self.setImage(to: artwork)
         })
     }
     
     func keyDown(device: String, payload: KeyEvent<NoSettings>)
     {
-        pressed = !pressed
-        setTitle(to: "\(pressed)")
+        
+    }
+    
+    func getItemFromNowPlayingInfo<T>(info: [String: Any?], key: String) -> T?
+    {
+        let check = info[key]
+        if check == nil
+        {
+            return nil
+        }
+        return check as? T
     }
 }

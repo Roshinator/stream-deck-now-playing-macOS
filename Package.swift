@@ -21,6 +21,6 @@ let package = Package(
             name: "nowplaying",
             dependencies: [
                 .product(name: "StreamDeck", package: "StreamDeck"),
-            ]),
+            ])
     ]
 )
