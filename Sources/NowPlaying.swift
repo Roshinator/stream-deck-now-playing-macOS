@@ -130,6 +130,7 @@ class NowPlayingAction : StatelessKeyAction
     
     func keyDown(device: String, payload: KeyEvent<NoSettings>)
     {
+        //2 is the enum code for play/pause
         let _ = MRMediaRemoteSendCommand(2, NSDictionary());
     }
     
