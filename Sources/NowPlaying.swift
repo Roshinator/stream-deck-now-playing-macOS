@@ -18,7 +18,7 @@ class NowPlayingPlugin: PluginDelegate
     
     static var name: String  = "Now Playing"
     
-    static var description: String = "This plugin displays the album art of the currently playing media."
+    static var description: String = "This plugin displays the album art of the currently playing media. Press the key for play/pause"
     
     static var category: String? = nil
     
